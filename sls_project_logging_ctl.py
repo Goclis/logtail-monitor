@@ -5,14 +5,13 @@ import os
 import time
 import json
 
-
 # Configurations
 access_key_id = ''
 access_key_secret = ''
 region_endpoint = ''
 project_name = ''
+store_project_name = ''
 disable_output = True
-
 
 cfg_dir = 'logging_config'
 resource_map = {
@@ -38,61 +37,63 @@ resource_map = {
 }
 
 
-def info_print(data) :
+def info_print(data):
     print '\033[92m' + data + '\033[0m'
 
 
-def error_print(data) :
+def error_print(data):
     print '\033[91m' + data + '\033[0m'
 
 
 def exec_aliyunlog_cli(subcmd):
     cmd = 'aliyunlog log %s --access-id=%s --access-key=%s --region-endpoint=%s' \
-        % (subcmd, access_key_id, access_key_secret, region_endpoint)
+          % (subcmd, access_key_id, access_key_secret, region_endpoint)
     if disable_output:
         cmd += ' > /dev/null'
     return os.system(cmd)
 
 
 def create_resources(logging_type):
-    if exec_aliyunlog_cli('get_project --project_name=%s' % project_name):
-        raise RuntimeError('project %s is not existing' % project_name)
+    """create project to store logging.
+    """
+    if exec_aliyunlog_cli('get_project --project_name=%s' % store_project_name):
+        raise RuntimeError('project %s is not existing' % store_project_name)
 
-    info_print('create/update SLS resources for project %s' % project_name)
+    info_print('create/update SLS resources for project %s' % store_project_name)
     logstore_name = logging_type
     resource_cfg = resource_map[logstore_name]
     if exec_aliyunlog_cli('get_logstore --project_name=%s --logstore_name=%s'
-        % (project_name, logstore_name)):
+                          % (store_project_name, logstore_name)):
         info_print('logstore %s is not existing, create it' % logstore_name)
         if exec_aliyunlog_cli('create_logstore --project_name=%s --logstore_name=%s'
-            % (project_name, logstore_name)):
+                              % (store_project_name, logstore_name)):
             raise RuntimeError('create logstore %s error, abort' % logstore_name)
 
     if resource_cfg['with_index']:
         index_cfg_file = os.path.join(cfg_dir, '%s_index_config.json' % logstore_name)
         if exec_aliyunlog_cli('get_index_config --project_name=%s --logstore_name=%s'
-            % (project_name, logstore_name)):
+                              % (store_project_name, logstore_name)):
             info_print('index for logstore %s is not existing, create it' % logstore_name)
             if exec_aliyunlog_cli('create_index --project_name=%s --logstore_name=%s --index_detail="$(cat %s)"'
-                % (project_name, logstore_name, index_cfg_file)):
+                                  % (store_project_name, logstore_name, index_cfg_file)):
                 raise RuntimeError('create index for logstore %s error, abort' % logstore_name)
         else:
             info_print('index for logstore %s is existing, update it' % logstore_name)
             if exec_aliyunlog_cli('update_index --project_name=%s --logstore_name=%s --index_detail="$(cat %s)"'
-                % (project_name, logstore_name, index_cfg_file)):
+                                  % (store_project_name, logstore_name, index_cfg_file)):
                 error_print('update index for logstore %s error, skip' % logstore_name)
 
     for name in resource_cfg['dashboards']:
         dashboard_cfg_file = os.path.join(cfg_dir, '%s_dashboard_config.json' % name)
-        if exec_aliyunlog_cli('get_dashboard --project=%s --entity=%s' % (project_name, name)):
+        if exec_aliyunlog_cli('get_dashboard --project=%s --entity=%s' % (store_project_name, name)):
             info_print('dashboard %s is not existing, create it' % name)
             if exec_aliyunlog_cli('create_dashboard --project=%s --detail="$(cat %s)"'
-                % (project_name, dashboard_cfg_file)):
+                                  % (store_project_name, dashboard_cfg_file)):
                 raise RuntimeError('create dashboard %s error, abort' % name)
         else:
             info_print('dashboard %s is existing, update it' % name)
             if exec_aliyunlog_cli('update_dashboard --project=%s --detail="$(cat %s)"'
-                % (project_name, dashboard_cfg_file)):
+                                  % (store_project_name, dashboard_cfg_file)):
                 info_print('update dashboard %s error, skip' % logstore_name)
 
 
@@ -101,16 +102,16 @@ def exec_logging_cli(method, config=''):
     if sys.platform == 'darwin':
         cli_path += '_darwin'
     cmd = './%s -project=%s -endpoint=%s -access-key-id=%s -access-key-secret=%s -method=%s -config="%s"' \
-        % (cli_path, project_name , region_endpoint, access_key_id, access_key_secret, method, config)
+          % (cli_path, project_name, region_endpoint, access_key_id, access_key_secret, method, config)
     if disable_output:
         cmd += ' > /dev/null'
     return os.system(cmd)
 
 
 def create_logging(logging_types):
-    info_print('create logging for project %s' % project_name)
+    info_print('create logging for project %s, store to %s' % (project_name, store_project_name))
     logging = {
-        'loggingProject': project_name,
+        'loggingProject': store_project_name,
         'loggingDetails': []
     }
     for log_type in logging_types:
@@ -142,12 +143,15 @@ def enable_loggings(type_name):
 
 
 def print_usage():
-    print 'Usage: ./sls_project_logging_ctl.py enable [<region_endpoint>] [<project_name>] <logging_type>'
+    print 'Usage: ./sls_project_logging_ctl.py enable [<region_endpoint>] '
+    print '       [<project_name>] [<store_project_name>] <logging_type>'
     print ''
     print 'Options:'
     print '  <region_endpoint>: such as cn-hangzhou.log.aliyuncs.com, cn-shanghai-intranet.log.aliyuncs.com'
     print '                     see https://help.aliyun.com/document_detail/29008.html for more.'
-    print '  <project_name>: the name of your SLS project'
+    print '  <project_name>: the name of your SLS project to enable logging'
+    print '  <store_project_name>: the name of your SLS project to store logging, must exist and be same '
+    print '                        region of <project_name>'
     print '  <logging_type>: "internal-operation_log" for operation logs'
     print '                  "internal-diagnostic_log" for diagnostic logs, such as logtail and consumer group status'
     print '                  "all"'
@@ -159,6 +163,9 @@ def print_usage():
     print '  ./sls_project_logging_ctl.py enable cn-hangzhou.log.aliyuncs.com my-project-name all'
     print '  # Enable diagnostic logs only for project named my-project-name at region cn-shanghai.'
     print '  ./sls_project_logging_ctl.py enable cn-shanghai.log.aliyuncs.com my-project-name internal-diagnostic_log'
+    print '  # Enable all kinds of SLS logging for project named my-project-name at region cn-hangzhou and '
+    print '  # store them in store-project.'
+    print '  ./sls_project_logging_ctl.py enable cn-hangzhou.log.aliyuncs.com my-project-name store-project all'
 
 
 if __name__ == '__main__':
@@ -166,7 +173,7 @@ if __name__ == '__main__':
         print_usage()
         sys.exit(0)
 
-    if len(sys.argv) != 3 and len(sys.argv) != 5:
+    if len(sys.argv) != 3 and len(sys.argv) != 5 and len(sys.argv) != 6:
         error_print('[ERROR] invalid count of parameters')
         print_usage()
         sys.exit(1)
@@ -179,13 +186,17 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 3:
         logging_type = sys.argv[2]
-    elif len(sys.argv) == 5:
+    elif len(sys.argv) == 5 or len(sys.argv) == 6:
         region_endpoint = sys.argv[2]
         project_name = sys.argv[3]
         logging_type = sys.argv[4]
+        if len(sys.argv) == 6:
+            store_project_name = sys.argv[5]
+        else:
+            store_project_name = project_name
 
     if (not access_key_id or not access_key_secret
-        or not region_endpoint or not project_name):
+            or not region_endpoint or not project_name):
         error_print('please set configurations at the beginning of file')
         sys.exit(1)
 
