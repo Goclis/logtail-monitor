@@ -165,7 +165,7 @@ def print_usage():
     print '  ./sls_project_logging_ctl.py enable cn-shanghai.log.aliyuncs.com my-project-name internal-diagnostic_log'
     print '  # Enable all kinds of SLS logging for project named my-project-name at region cn-hangzhou and '
     print '  # store them in store-project.'
-    print '  ./sls_project_logging_ctl.py enable cn-hangzhou.log.aliyuncs.com my-project-name store-project all'
+    print '  ./sls_project_logging_ctl.py enable cn-hangzhou.log.aliyuncs.com my-project-name all store-project'
 
 
 if __name__ == '__main__':
