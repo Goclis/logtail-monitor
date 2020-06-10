@@ -28,6 +28,7 @@ $ ls -al logtail-monitor/sls_project_logging_ctl.py
 - `access_key_secret`：AK 信息，必填。
 - `region_endpoint`：要开启服务日志的 project 所在 region 的 endpoint，可通过参数指定。
 - `project_name`：要开启服务日志的 project 名，可通过参数指定。
+- `store_project_name`: 存储服务日志的 project 名，可通过参数指定。
 
 可执行 `sls_project_logging_ctl.py -h` 可查看更多相关说明。
 
@@ -53,11 +54,13 @@ $ ls -al logtail-monitor/sls_project_logging_ctl.py
 ./sls_project_logging_ctl.py enable cn-shanghai.log.aliyuncs.com my-project-name internal-diagnostic_log
 # 仅开启操作日志（cn-hangzhou 内网）
 ./sls_project_logging_ctl.py enable cn-hangzhou-intranet.log.aliyuncs.com my-project-name internal-operation_log
+# 开启所有日志（cn-hangzhou 公网），存储到另一个 project 中
+./sls_project_logging_ctl.py enable cn-hangzhou.log.aliyuncs.com my-project-name all another-project
 ```
 
 
 ## 更多阅读
 基于服务日志进行 logtail 监控：
 
-- [全方位](https://yq.aliyun.com/articles/691336)
+- [全方位 Logtail 状态监控](https://yq.aliyun.com/articles/691336)
 - [心跳最佳实践](https://yq.aliyun.com/articles/727322)
